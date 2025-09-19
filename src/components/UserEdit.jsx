@@ -12,6 +12,11 @@ import Switch from "@mui/material/Switch";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import LockResetIcon from "@mui/icons-material/LockReset";
 
+// API-URL zentral holen
+const API_URL =
+  process.env.REACT_APP_API_URL?.replace(/\/$/, "") ||
+  "https://vereins-backend-production.up.railway.app/api";
+
 function UserEdit({ token, isAdmin }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -24,7 +29,7 @@ function UserEdit({ token, isAdmin }) {
 
   useEffect(() => {
     axios
-      .get(`http://localhost:3001/users/${id}`, {
+      .get(`${API_URL}/users/${id}`, {
         headers: { Authorization: "Bearer " + token },
       })
       .then((res) => {
@@ -41,7 +46,7 @@ function UserEdit({ token, isAdmin }) {
     setMsg("");
     try {
       await axios.put(
-        `http://localhost:3001/users/${id}`,
+        `${API_URL}/users/${id}`,
         {
           email,
           ...(isAdmin ? { role, active } : {}),

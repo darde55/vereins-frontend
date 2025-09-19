@@ -19,6 +19,11 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 import LockIcon from "@mui/icons-material/Lock";
 
+// API-URL zentral holen
+const API_URL =
+  process.env.REACT_APP_API_URL?.replace(/\/$/, "") ||
+  "https://vereins-backend-production.up.railway.app/api";
+
 function UserList({ token }) {
   const [users, setUsers] = useState([]);
   const [msg, setMsg] = useState("");
@@ -26,10 +31,11 @@ function UserList({ token }) {
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:3001/users", {
+      const res = await axios.get(`${API_URL}/users`, {
         headers: { Authorization: "Bearer " + token }
       });
       setUsers(res.data);
+      setMsg("");
     } catch (err) {
       setMsg("Fehler beim Laden der Benutzer");
     }
@@ -40,7 +46,7 @@ function UserList({ token }) {
   const handleDelete = async (id) => {
     if (!window.confirm("Wirklich löschen?")) return;
     try {
-      await axios.delete(`http://localhost:3001/users/${id}`, {
+      await axios.delete(`${API_URL}/users/${id}`, {
         headers: { Authorization: "Bearer " + token }
       });
       fetchUsers();
@@ -51,9 +57,13 @@ function UserList({ token }) {
 
   const handleLock = async (id, active) => {
     try {
-      await axios.put(`http://localhost:3001/users/${id}`, { active: active ? 0 : 1 }, {
-        headers: { Authorization: "Bearer " + token }
-      });
+      await axios.put(
+        `${API_URL}/users/${id}`,
+        { active: active ? 0 : 1 },
+        {
+          headers: { Authorization: "Bearer " + token }
+        }
+      );
       fetchUsers();
     } catch (err) {
       setMsg("Fehler beim Sperren/Entsperren");
@@ -63,10 +73,14 @@ function UserList({ token }) {
   const handleSearch = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.get("http://localhost:3001/users/search?username=" + encodeURIComponent(search), {
-        headers: { Authorization: "Bearer " + token }
-      });
+      const res = await axios.get(
+        `${API_URL}/users/search?username=${encodeURIComponent(search)}`,
+        {
+          headers: { Authorization: "Bearer " + token }
+        }
+      );
       setUsers(res.data);
+      setMsg("");
     } catch (err) {
       setMsg("Fehler bei Suche");
     }

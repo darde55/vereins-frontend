@@ -10,6 +10,11 @@ import Typography from "@mui/material/Typography";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 
+// Hole die API-URL aus Umgebungsvariablen oder nutze Fallback
+const API_URL =
+  process.env.REACT_APP_API_URL?.replace(/\/$/, "") ||
+  "https://vereins-backend-production.up.railway.app/api";
+
 function Login({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -21,7 +26,7 @@ function Login({ onLogin }) {
     setError("");
     setLoading(true);
     try {
-      const res = await axios.post("http://localhost:3001/login", {
+      const res = await axios.post(`${API_URL}/login`, {
         username,
         password,
       });

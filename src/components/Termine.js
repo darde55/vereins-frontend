@@ -20,6 +20,10 @@ import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Alert from "@mui/material/Alert";
 
+const API_URL =
+  process.env.REACT_APP_API_URL?.replace(/\/$/, "") ||
+  "https://vereins-backend-production.up.railway.app/api";
+
 const locales = { "de": de };
 
 const localizer = dateFnsLocalizer({
@@ -39,16 +43,22 @@ function Termine({ token, username, role }) {
   useEffect(() => { fetchTermine(); }, []);
 
   const fetchTermine = async () => {
-    const res = await axios.get("http://localhost:3001/termine");
-    setTermine(res.data);
+    try {
+      const res = await axios.get(`${API_URL}/termine`);
+      setTermine(res.data);
+    } catch (err) {
+      setMsg("Fehler beim Laden der Termine");
+    }
   };
 
   // Einschreiben
   const handleEinschreiben = async (id) => {
     try {
-      await axios.post(`http://localhost:3001/termine/${id}/einschreiben`, {}, {
-        headers: { Authorization: "Bearer " + token },
-      });
+      await axios.post(
+        `${API_URL}/termine/${id}/einschreiben`,
+        {},
+        { headers: { Authorization: "Bearer " + token } }
+      );
       setMsg("Erfolgreich eingeschrieben!");
       fetchTermine();
     } catch (err) {
@@ -60,7 +70,7 @@ function Termine({ token, username, role }) {
   const handleDelete = async (id) => {
     if (!window.confirm("Diesen Termin wirklich löschen?")) return;
     try {
-      await axios.delete(`http://localhost:3001/termine/${id}`, {
+      await axios.delete(`${API_URL}/termine/${id}`, {
         headers: { Authorization: "Bearer " + token },
       });
       setMsg("Termin gelöscht.");
@@ -74,7 +84,7 @@ function Termine({ token, username, role }) {
   const handleEditSave = async (id) => {
     try {
       await axios.put(
-        `http://localhost:3001/termine/${id}`,
+        `${API_URL}/termine/${id}`,
         { ...editData },
         { headers: { Authorization: "Bearer " + token } }
       );
@@ -180,10 +190,10 @@ function Termine({ token, username, role }) {
                       <TableCell>
                         <TextField
                           type="number"
-                          min={1}
                           value={editData.anzahl}
                           onChange={e => setEditData(d => ({ ...d, anzahl: Number(e.target.value) }))}
                           fullWidth
+                          inputProps={{ min: 1 }}
                         />
                       </TableCell>
                       <TableCell>{t.teilnehmer?.length || 0}</TableCell>

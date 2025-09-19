@@ -12,6 +12,11 @@ import InputAdornment from "@mui/material/InputAdornment";
 import PeopleIcon from "@mui/icons-material/People";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 
+// API-URL zentral holen
+const API_URL =
+  process.env.REACT_APP_API_URL?.replace(/\/$/, "") ||
+  "https://vereins-backend-production.up.railway.app/api";
+
 function formatDateEU(date) {
   if (!date) return "";
   return date.toLocaleDateString("de-DE");
@@ -40,7 +45,7 @@ function NeuerTermin({ token }) {
     }
     try {
       await axios.post(
-        "http://localhost:3001/termine",
+        `${API_URL}/termine`,
         {
           titel,
           datum: datum.toISOString().slice(0, 10),
