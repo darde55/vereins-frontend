@@ -45,9 +45,11 @@ function Termine({ token, username, role }) {
   const fetchTermine = async () => {
     try {
       const res = await axios.get(`${API_URL}/termine`);
-      setTermine(res.data);
+      // Fallback: termine immer als Array setzen!
+      setTermine(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       setMsg("Fehler beim Laden der Termine");
+      setTermine([]); // Auch bei Fehler: leeres Array!
     }
   };
 
@@ -99,7 +101,7 @@ function Termine({ token, username, role }) {
   // Kalender-Events für react-big-calendar
   const events = useMemo(
     () =>
-      termine.map((t) => ({
+      (Array.isArray(termine) ? termine : []).map((t) => ({
         id: t.id,
         title: t.titel,
         start: new Date(t.datum),
@@ -157,7 +159,7 @@ function Termine({ token, username, role }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {termine.map((t) => {
+            {(Array.isArray(termine) ? termine : []).map((t) => {
               const istAngemeldet = t.teilnehmer?.includes(username);
               const voll = (t.teilnehmer?.length || 0) >= t.anzahl;
               const isEditing = editId === t.id;
