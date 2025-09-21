@@ -16,6 +16,10 @@ const API_URL =
   process.env.REACT_APP_API_URL?.replace(/\/$/, "") ||
   "https://vereins-backend-production.up.railway.app/api";
 
+/**
+ * Admin legt einen neuen User an
+ * Erwartet: gültiges JWT-Token im "token"-Prop (Admin-Rechte!)
+ */
 function NeuerUser({ token }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -31,15 +35,15 @@ function NeuerUser({ token }) {
     }
     try {
       await axios.post(
-        `${API_URL}/register`,
+        `${API_URL}/users`, // Beispiel-Route für Admin-User-Anlage
         {
           username,
           email,
           password,
         },
-        token
-          ? { headers: { Authorization: "Bearer " + token } }
-          : undefined
+        {
+          headers: { Authorization: "Bearer " + token }
+        }
       );
       setMsg("Benutzer erfolgreich angelegt!");
       setUsername("");
@@ -48,8 +52,8 @@ function NeuerUser({ token }) {
     } catch (err) {
       setMsg(
         err.response?.data?.error ||
-          err.response?.data?.message ||
-          "Fehler beim Anlegen"
+        err.response?.data?.message ||
+        "Fehler beim Anlegen"
       );
     }
   };
@@ -58,7 +62,7 @@ function NeuerUser({ token }) {
     <Box sx={{ display: "flex", justifyContent: "center", alignItems: "flex-start", minHeight: "70vh" }}>
       <Paper elevation={4} sx={{ p: 4, maxWidth: 450, width: "100%" }}>
         <Typography variant="h5" sx={{ mb: 3 }}>
-          Neuen Benutzer anlegen
+          Benutzer als Admin anlegen
         </Typography>
         <Box component="form" onSubmit={handleSubmit} autoComplete="off">
           <TextField
@@ -109,7 +113,7 @@ function NeuerUser({ token }) {
             }}
           />
           <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>
-            Anlegen
+            Benutzer anlegen
           </Button>
           {msg && (
             <Alert severity={msg.includes("erfolgreich") ? "success" : "error"} sx={{ mt: 2 }}>
