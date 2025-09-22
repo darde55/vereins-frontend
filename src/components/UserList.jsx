@@ -7,14 +7,31 @@ function UserList() {
 
   useEffect(() => {
     fetchUsers();
+    // eslint-disable-next-line
   }, []);
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("/api/users");
+      // Hole das Token aus localStorage (oder passe es ggf. an, wo du es speicherst)
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setMsg("Nicht eingeloggt oder kein Token gefunden.");
+        setUsers([]);
+        return;
+      }
+      const res = await axios.get("/api/users", {
+        headers: {
+          Authorization: "Bearer " + token
+        }
+      });
       setUsers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      setMsg("Fehler beim Laden der User");
+      // Fehlerbehandlung inkl. spezifischer Backend-Fehlermeldung, falls vorhanden
+      setMsg(
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Fehler beim Laden der User"
+      );
       setUsers([]); // Fallback: leeres Array bei Fehler!
     }
   };
@@ -25,7 +42,7 @@ function UserList() {
       {msg && <div style={{ color: "red" }}>{msg}</div>}
       <ul>
         {(Array.isArray(users) ? users : []).map(user => (
-          <li key={user.id}>{user.username} ({user.email})</li>
+          <li key={user.id}>{user.username} ({user.email}) - Rolle: {user.role}</li>
         ))}
       </ul>
     </div>
