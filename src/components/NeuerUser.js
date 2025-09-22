@@ -10,6 +10,7 @@ import InputAdornment from "@mui/material/InputAdornment";
 import PersonIcon from "@mui/icons-material/Person";
 import EmailIcon from "@mui/icons-material/Email";
 import LockIcon from "@mui/icons-material/Lock";
+import MenuItem from "@mui/material/MenuItem";
 
 // API-URL zentral holen
 const API_URL =
@@ -24,22 +25,24 @@ function NeuerUser({ token }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("user");
   const [msg, setMsg] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMsg("");
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !role) {
       setMsg("Alle Felder sind Pflichtfelder.");
       return;
     }
     try {
       await axios.post(
-        `${API_URL}/users`, // Beispiel-Route für Admin-User-Anlage
+        `${API_URL}/users`,
         {
           username,
           email,
           password,
+          role,
         },
         {
           headers: { Authorization: "Bearer " + token }
@@ -49,6 +52,7 @@ function NeuerUser({ token }) {
       setUsername("");
       setEmail("");
       setPassword("");
+      setRole("user");
     } catch (err) {
       setMsg(
         err.response?.data?.error ||
@@ -112,6 +116,19 @@ function NeuerUser({ token }) {
               ),
             }}
           />
+          <TextField
+            select
+            label="Rolle"
+            value={role}
+            onChange={e => setRole(e.target.value)}
+            fullWidth
+            margin="normal"
+            required
+            sx={{ mt: 2 }}
+          >
+            <MenuItem value="user">user</MenuItem>
+            <MenuItem value="admin">admin</MenuItem>
+          </TextField>
           <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>
             Benutzer anlegen
           </Button>
