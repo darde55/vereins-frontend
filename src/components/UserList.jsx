@@ -127,24 +127,37 @@ function UserList() {
 
   const handleEdit = (user) => {
     setEditUserId(user.id);
-    setEditData({ ...user });
+    setEditData({ 
+      ...user, 
+      password: "", // leer beim Editieren!
+      active: typeof user.active === "boolean" ? user.active : user.active === "true"
+    });
   };
 
   const handleEditChange = (e) => {
-    setEditData({ ...editData, [e.target.name]: e.target.value });
+    let value = e.target.value;
+    if (e.target.name === "active") {
+      value = value === "true"; // Wandelt "true"/"false" in Boolean
+    }
+    setEditData({ ...editData, [e.target.name]: value });
   };
 
   const handleUpdate = async (id) => {
     try {
       const token = localStorage.getItem("token");
+      // Nur Passwort mitsenden, wenn das Feld nicht leer ist
+      const payload = {
+        username: editData.username,
+        email: editData.email,
+        role: editData.role,
+        active: !!editData.active
+      };
+      if (editData.password && editData.password.length > 0) {
+        payload.password = editData.password;
+      }
       await axios.put(
         `${API_URL}/users/${id}`,
-        {
-          username: editData.username,
-          email: editData.email,
-          role: editData.role,
-          active: editData.active
-        },
+        payload,
         {
           headers: {
             Authorization: "Bearer " + token
@@ -244,9 +257,9 @@ function UserList() {
                     </select>
                   </td>
                   <td style={styles.td}>
-                    <select name="active" value={editData.active} onChange={handleEditChange} style={styles.select}>
-                      <option value={true}>aktiv</option>
-                      <option value={false}>inaktiv</option>
+                    <select name="active" value={editData.active ? "true" : "false"} onChange={handleEditChange} style={styles.select}>
+                      <option value="true">aktiv</option>
+                      <option value="false">inaktiv</option>
                     </select>
                   </td>
                   <td style={styles.td}>
@@ -256,6 +269,21 @@ function UserList() {
                     <button style={styles.actionBtn} onClick={() => setEditUserId(null)}>
                       <FaTimes /> Abbrechen
                     </button>
+                    {/* Passwort-Eingabe */}
+                    <div style={{ marginTop: 8 }}>
+                      <input
+                        type="password"
+                        name="password"
+                        placeholder="Neues Passwort"
+                        value={editData.password}
+                        onChange={handleEditChange}
+                        style={styles.input}
+                        autoComplete="new-password"
+                      />
+                      <div style={{ fontSize: "0.85em", color: "#888", marginTop: "2px" }}>
+                        Leer lassen, um das Passwort nicht zu ändern
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ) : (
