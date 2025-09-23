@@ -1,7 +1,20 @@
 import React, { useEffect, useState } from "react";
-import Calendar from "react-calendar"; // oder react-big-calendar
+import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import { FaChevronDown, FaChevronUp, FaEdit } from "react-icons/fa";
+
+// Großes, übersichtliches Kalender-Design
+const calendarStyle = {
+  width: "100%",
+  maxWidth: "1100px",
+  minHeight: "480px",
+  margin: "0 auto 32px auto",
+  fontSize: "1.22rem",
+  boxShadow: "0 2px 8px #0002",
+  borderRadius: "18px",
+  padding: "18px",
+  background: "#fff"
+};
 
 function Termine({ user, apiUrl, token }) {
   const [termine, setTermine] = useState([]);
@@ -9,28 +22,32 @@ function Termine({ user, apiUrl, token }) {
   const [selectedDetails, setSelectedDetails] = useState({});
   const [myNextTermin, setMyNextTermin] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Termine und Rangliste laden
+  // Daten holen
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
+      setError("");
       try {
-        // Termine
+        // === Termine laden ===
         const res = await fetch(apiUrl + "/termine", {
           headers: { Authorization: "Bearer " + token }
         });
         const termineData = await res.json();
-        setTermine(Array.isArray(termineData) ? termineData : []);
+        if (!Array.isArray(termineData)) throw new Error("Termine-Format ungültig!");
+        setTermine(termineData);
 
-        // Rangliste (alle users)
+        // === Rangliste laden ===
         const res2 = await fetch(apiUrl + "/users", {
           headers: { Authorization: "Bearer " + token }
         });
         const usersData = await res2.json();
-        setRangliste(Array.isArray(usersData) ? usersData : []);
+        if (!Array.isArray(usersData)) throw new Error("Rangliste-Format ungültig!");
+        setRangliste(usersData);
 
-        // Nächster Termin, an dem User eingetragen ist
-        const myTermine = (Array.isArray(termineData) ? termineData : [])
+        // === Nächster eigener Termin berechnen ===
+        const myTermine = termineData
           .filter(
             t =>
               t &&
@@ -42,6 +59,7 @@ function Termine({ user, apiUrl, token }) {
           .sort((a, b) => new Date(a.datum) - new Date(b.datum));
         setMyNextTermin(myTermine[0] || null);
       } catch (e) {
+        setError("Fehler beim Laden der Daten: " + e.message);
         setTermine([]);
         setRangliste([]);
       }
@@ -50,7 +68,7 @@ function Termine({ user, apiUrl, token }) {
     fetchData();
   }, [apiUrl, token, user?.username]);
 
-  // Einschreiben-Handler
+  // Einschreiben
   async function handleEinschreiben(terminId) {
     try {
       await fetch(apiUrl + `/termine/${terminId}/teilnehmer`, {
@@ -61,17 +79,15 @@ function Termine({ user, apiUrl, token }) {
         },
         body: JSON.stringify({ username: user.username })
       });
-      // Reload Termine nach dem Einschreiben
       window.location.reload();
     } catch (e) {
       alert("Fehler beim Einschreiben.");
     }
   }
 
-  // Bearbeiten-Handler für Admin (hier evtl. Modal öffnen, Dummy)
+  // Bearbeiten (Dummy)
   function handleBearbeiten(terminId) {
     alert("Bearbeiten von Termin " + terminId);
-    // Hier ein Modal oder Seite zum Bearbeiten öffnen
   }
 
   // Kalender-Events vorbereiten
@@ -84,28 +100,65 @@ function Termine({ user, apiUrl, token }) {
         }))
     : [];
 
-  return (
-    <div style={{ maxWidth: 900, margin: "0 auto" }}>
-      {/* 1. Großer Kalender */}
-      <h2>Kalender</h2>
-      <Calendar
-        tileContent={({ date, view }) => {
-          // Zeige Termin-Titel am jeweiligen Datum
-          const events = kalenderEvents.filter(
-            ev => ev.date.toDateString() === date.toDateString()
-          );
-          return events.length > 0 ? (
-            <div style={{ fontSize: 9, color: "blue" }}>
-              {events.map(ev => ev.title).join(", ")}
-            </div>
-          ) : null;
-        }}
-      />
+  function tileClassName({ date }) {
+    if (
+      kalenderEvents.some(ev => ev.date.toDateString() === date.toDateString())
+    ) {
+      return "highlight-day";
+    }
+    return null;
+  }
 
-      {/* 2. Termin-Liste */}
+  function tileContent({ date }) {
+    const events = kalenderEvents.filter(
+      ev => ev.date.toDateString() === date.toDateString()
+    );
+    return events.length > 0 ? (
+      <div style={{
+        fontSize: "1em",
+        color: "#1d56b3",
+        fontWeight: 600,
+        marginTop: 2
+      }}>
+        {events.map(ev => ev.title).join(", ")}
+      </div>
+    ) : null;
+  }
+
+  return (
+    <div style={{ maxWidth: 1150, margin: "0 auto", padding: "20px" }}>
+      <h2 style={{ marginTop: 0 }}>Kalender</h2>
+      <div style={calendarStyle}>
+        <Calendar
+          tileContent={tileContent}
+          tileClassName={tileClassName}
+          calendarType="ISO 8601"
+          showNeighboringMonth={false}
+          prev2Label={null}
+          next2Label={null}
+        />
+      </div>
+      <style>
+        {`
+        .highlight-day {
+          background: #e6f0ff !important;
+          border-radius: 50% !important;
+        }
+        .react-calendar {
+          border: none !important;
+        }
+        .react-calendar__tile--active {
+          background: #206bff !important;
+          color: white !important;
+        }
+        `}
+      </style>
+
       <h2>Alle Termine</h2>
       {loading ? (
         <div>Lade Termine...</div>
+      ) : error ? (
+        <div style={{ color: "red" }}>{error}</div>
       ) : (
         <div>
           {Array.isArray(termine) && termine.length > 0 ? (
@@ -114,10 +167,10 @@ function Termine({ user, apiUrl, token }) {
                 <div
                   key={t.id}
                   style={{
-                    background: "#f7f7fa",
-                    margin: "16px 0",
-                    borderRadius: 8,
-                    padding: 16,
+                    background: "#f5f7fa",
+                    margin: "18px 0",
+                    borderRadius: 10,
+                    padding: 20,
                     boxShadow: "0 1px 4px #0001"
                   }}
                 >
@@ -129,7 +182,7 @@ function Termine({ user, apiUrl, token }) {
                     }}
                   >
                     <div>
-                      <b>{t.titel}</b>{" "}
+                      <b style={{ fontSize: "1.12em" }}>{t.titel}</b>{" "}
                       <span style={{ color: "#666" }}>{t.datum}</span>
                     </div>
                     <div>
@@ -163,7 +216,6 @@ function Termine({ user, apiUrl, token }) {
                       </button>
                     </div>
                   </div>
-                  {/* Details */}
                   {selectedDetails[t.id] && (
                     <div style={{ marginTop: 10, color: "#222" }}>
                       <div>
@@ -179,10 +231,19 @@ function Termine({ user, apiUrl, token }) {
                         <b>Teilnehmer:</b>{" "}
                         {Array.isArray(t.teilnehmer) ? t.teilnehmer.length : 0} /{" "}
                         {t.anzahl}
-                        <div>
+                        <div style={{ marginTop: 4 }}>
                           {Array.isArray(t.teilnehmer) &&
                             t.teilnehmer.map(name => (
-                              <span key={name} style={{ marginRight: 8 }}>
+                              <span
+                                key={name}
+                                style={{
+                                  marginRight: 8,
+                                  background: "#e0eaff",
+                                  borderRadius: 5,
+                                  padding: "2px 8px",
+                                  fontSize: "0.98em"
+                                }}
+                              >
                                 {name}
                               </span>
                             ))}
@@ -199,14 +260,13 @@ function Termine({ user, apiUrl, token }) {
         </div>
       )}
 
-      {/* 3. Nächster eigener Termin */}
       <h2>Dein nächster Termin</h2>
       {myNextTermin ? (
         <div
           style={{
             background: "#e0ffe0",
-            padding: 16,
-            borderRadius: 8,
+            padding: 18,
+            borderRadius: 10,
             marginBottom: 24
           }}
         >
@@ -217,44 +277,49 @@ function Termine({ user, apiUrl, token }) {
         <div>Du bist für keinen Termin eingeschrieben.</div>
       )}
 
-      {/* 4. Rangliste */}
       <h2>Rangliste</h2>
-      <table
-        style={{
-          width: "100%",
-          marginTop: 16,
-          borderCollapse: "collapse",
-          boxShadow: "0 1px 4px #0001"
-        }}
-      >
-        <thead>
-          <tr style={{ background: "#f0f0f0" }}>
-            <th style={{ padding: "8px 4px" }}>#</th>
-            <th>Name</th>
-            <th>Score</th>
-            <th>Rolle</th>
-          </tr>
-        </thead>
-        <tbody>
-          {Array.isArray(rangliste)
-            ? rangliste
-                .sort((a, b) => (b.score || 0) - (a.score || 0))
-                .map((u, i) => (
-                  <tr
-                    key={u.username}
-                    style={{
-                      background: user?.username === u.username ? "#ffffcc" : "#fff"
-                    }}
-                  >
-                    <td style={{ padding: "8px 4px" }}>{i + 1}</td>
-                    <td>{u.username}</td>
-                    <td>{u.score}</td>
-                    <td>{u.role}</td>
-                  </tr>
-                ))
-            : null}
-        </tbody>
-      </table>
+      {loading ? (
+        <div>Lade Rangliste...</div>
+      ) : error ? (
+        <div style={{ color: "red" }}>{error}</div>
+      ) : Array.isArray(rangliste) && rangliste.length > 0 ? (
+        <table
+          style={{
+            width: "100%",
+            marginTop: 16,
+            borderCollapse: "collapse",
+            boxShadow: "0 1px 4px #0001"
+          }}
+        >
+          <thead>
+            <tr style={{ background: "#f0f0f0" }}>
+              <th style={{ padding: "8px 4px" }}>#</th>
+              <th>Name</th>
+              <th>Score</th>
+              <th>Rolle</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rangliste
+              .sort((a, b) => (b.score || 0) - (a.score || 0))
+              .map((u, i) => (
+                <tr
+                  key={u.username}
+                  style={{
+                    background: user?.username === u.username ? "#ffffcc" : "#fff"
+                  }}
+                >
+                  <td style={{ padding: "8px 4px" }}>{i + 1}</td>
+                  <td>{u.username}</td>
+                  <td>{u.score}</td>
+                  <td>{u.role}</td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      ) : (
+        <div>Keine Rangliste gefunden.</div>
+      )}
     </div>
   );
 }
