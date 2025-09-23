@@ -24,13 +24,11 @@ function isAdmin(userList, username) {
 }
 
 function Termine({ token, username }) {
-  // States
   const [termine, setTermine] = useState([]);
   const [userList, setUserList] = useState([]);
   const [err, setErr] = useState("");
   const [selectedDate, setSelectedDate] = useState(null);
 
-  // Admin: Termin anlegen
   const [showCreate, setShowCreate] = useState(false);
   const [createData, setCreateData] = useState({
     titel: "",
@@ -46,7 +44,7 @@ function Termine({ token, username }) {
   const [createErr, setCreateErr] = useState("");
   const [createSaving, setCreateSaving] = useState(false);
 
-  // Lade Termine und Nutzerliste
+  // Daten laden
   useEffect(() => {
     async function fetchData() {
       try {
@@ -59,16 +57,18 @@ function Termine({ token, username }) {
             headers: { Authorization: "Bearer " + token },
           }),
         ]);
-        setTermine(termineRes.data || []);
-        setUserList(usersRes.data || []);
+        setTermine(Array.isArray(termineRes.data) ? termineRes.data : []);
+        setUserList(Array.isArray(usersRes.data) ? usersRes.data : []);
       } catch (e) {
-        setErr("Fehler beim Laden der Daten");
+        setErr(
+          e.response?.data?.error ||
+            "Fehler beim Laden der Daten. Prüfe Backend und Token."
+        );
       }
     }
     fetchData();
   }, [token]);
 
-  // Sortiere User für Score-Ranking
   const scoreRanking = [...userList]
     .sort((a, b) => (b.score || 0) - (a.score || 0))
     .map((u, i) => ({
@@ -76,13 +76,12 @@ function Termine({ token, username }) {
       rank: i + 1,
     }));
 
-  // Kalender Datum schön anzeigen
   function getSelectedDateLabel() {
     if (!selectedDate) return "Deine nächsten Termine";
     return `Termine am ${selectedDate.toLocaleDateString("de-DE")}`;
   }
 
-  // Termine nach Datum filtern, falls ein Datum ausgewählt ist
+  // Termine nach Datum filtern
   const angezeigteTermine = selectedDate
     ? termine.filter(
         (t) =>
@@ -92,7 +91,7 @@ function Termine({ token, username }) {
       )
     : termine;
 
-  // ADMIN: TERMIN ANLEGEN
+  // Termin anlegen (nur Admin)
   async function handleCreateTermin(e) {
     e.preventDefault();
     setCreateErr("");
@@ -117,14 +116,13 @@ function Termine({ token, username }) {
       const res = await axios.get(`${API_URL}/termine`, {
         headers: { Authorization: "Bearer " + token },
       });
-      setTermine(res.data || []);
+      setTermine(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
       setCreateErr(e.response?.data?.error || "Fehler beim Anlegen");
     }
     setCreateSaving(false);
   }
 
-  // Handler für Datumsauswahl
   function handleDateChange(e) {
     const val = e.target.value;
     if (!val) {
