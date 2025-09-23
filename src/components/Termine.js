@@ -85,6 +85,19 @@ function Termine({ user, token }) {
           )
           .sort((a, b) => new Date(a.datum) - new Date(b.datum));
         setMyNextTermin(myTermine[0] || null);
+
+        // === Konsolen-Logs ===
+        console.log("Aktueller User:", user);
+        termineFixed.forEach((t, idx) => {
+          console.log(`Termin [${idx}] ID:`, t.id);
+          console.log("  Teilnehmer:", t.teilnehmer);
+          if (user && user.username) {
+            const already = t.teilnehmer
+              .map(name => (typeof name === "string" ? name.toLowerCase().trim() : ""))
+              .includes(user.username.toLowerCase().trim());
+            console.log("  Sieht Einschreibebutton?", !already);
+          }
+        });
       } catch (e) {
         setError("Fehler beim Laden der Daten: " + e.message);
         setTermine([]);
@@ -190,6 +203,19 @@ function Termine({ user, token }) {
                     boxShadow: "0 1px 4px #0001"
                   }}
                 >
+                  {/* Konsolen-Logs für Button-Logik */}
+                  {console.log("Render Termin:", t.id)}
+                  {console.log("  User:", user)}
+                  {console.log("  Teilnehmer:", t.teilnehmer)}
+                  {console.log(
+                    "  Einschreibebutton?",
+                    Array.isArray(t.teilnehmer),
+                    user,
+                    user?.username,
+                    !t.teilnehmer
+                      .map(name => (typeof name === "string" ? name.toLowerCase().trim() : ""))
+                      .includes(user?.username?.toLowerCase().trim())
+                  )}
                   <div
                     style={{
                       display: "flex",
