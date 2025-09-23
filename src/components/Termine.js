@@ -132,7 +132,7 @@ function Termine({ user, apiUrl, token }) {
         <Calendar
           tileContent={tileContent}
           tileClassName={tileClassName}
-          calendarType="ISO 8601"
+          calendarType="ISO8601"
           showNeighboringMonth={false}
           prev2Label={null}
           next2Label={null}
