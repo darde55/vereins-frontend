@@ -3,7 +3,7 @@ import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import { FaChevronDown, FaChevronUp, FaEdit } from "react-icons/fa";
 
-// Großes, übersichtliches Kalender-Design
+// Großes Kalender-Design für Übersichtlichkeit
 const calendarStyle = {
   width: "100%",
   maxWidth: "1100px",
@@ -23,6 +23,7 @@ function Termine({ user, apiUrl, token }) {
   const [myNextTermin, setMyNextTermin] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [calendarValue, setCalendarValue] = useState(new Date());
 
   // Daten holen
   useEffect(() => {
@@ -90,7 +91,7 @@ function Termine({ user, apiUrl, token }) {
     alert("Bearbeiten von Termin " + terminId);
   }
 
-  // Kalender-Events vorbereiten
+  // Kalender-Events für Markierung
   const kalenderEvents = Array.isArray(termine)
     ? termine
         .filter(t => t && t.datum && t.titel)
@@ -100,6 +101,7 @@ function Termine({ user, apiUrl, token }) {
         }))
     : [];
 
+  // Tage mit Terminen markieren (V6: CSS-Klasse dynamisch setzen)
   function tileClassName({ date }) {
     if (
       kalenderEvents.some(ev => ev.date.toDateString() === date.toDateString())
@@ -109,6 +111,7 @@ function Termine({ user, apiUrl, token }) {
     return null;
   }
 
+  // Termin-Titel auf Kalendertag anzeigen
   function tileContent({ date }) {
     const events = kalenderEvents.filter(
       ev => ev.date.toDateString() === date.toDateString()
@@ -130,12 +133,14 @@ function Termine({ user, apiUrl, token }) {
       <h2 style={{ marginTop: 0 }}>Kalender</h2>
       <div style={calendarStyle}>
         <Calendar
+          value={calendarValue}
+          onChange={setCalendarValue}
           tileContent={tileContent}
           tileClassName={tileClassName}
-          calendarType="ISO8601"
           showNeighboringMonth={false}
           prev2Label={null}
           next2Label={null}
+          // calendarType gibt es in v6 NICHT mehr!
         />
       </div>
       <style>
