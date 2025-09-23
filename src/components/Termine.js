@@ -72,7 +72,9 @@ function Termine({ user, token }) {
               Array.isArray(t.teilnehmer) &&
               user &&
               user.username &&
-              t.teilnehmer.includes(user.username)
+              t.teilnehmer
+                .map(name => (typeof name === "string" ? name.toLowerCase().trim() : ""))
+                .includes(user.username.toLowerCase().trim())
           )
           .sort((a, b) => new Date(a.datum) - new Date(b.datum));
         setMyNextTermin(myTermine[0] || null);
@@ -104,7 +106,6 @@ function Termine({ user, token }) {
   }
 
   function handleBearbeiten(terminId) {
-    // Hier kannst du ein Modal oder einen Redirect zum Bearbeiten bauen
     alert("Bearbeiten von Termin " + terminId);
   }
 
@@ -205,11 +206,13 @@ function Termine({ user, token }) {
                           Bearbeiten
                         </button>
                       )}
-                      {/* Einschreiben-Button für eingeloggte User */}
+                      {/* Einschreiben-Button für eingeloggte User, wenn noch nicht eingeschrieben */}
                       {Array.isArray(t.teilnehmer) &&
                         user &&
                         user.username &&
-                        !t.teilnehmer.includes(user.username) && (
+                        !t.teilnehmer
+                          .map(name => (typeof name === "string" ? name.toLowerCase().trim() : ""))
+                          .includes(user.username.toLowerCase().trim()) && (
                           <button
                             onClick={() => handleEinschreiben(t.id)}
                             style={{ background: "#e0f7fa", border: "1px solid #00b8d4", color: "#006064", borderRadius: 6, padding: "0.32em 0.7em", cursor: "pointer" }}
