@@ -105,7 +105,13 @@ function Termine({ user, token }) {
       }
       setLoading(false);
     }
-    fetchData();
+    if (token && user) {
+      fetchData();
+    } else {
+      setLoading(false);
+      setTermine([]);
+      setRangliste([]);
+    }
   }, [token, user]);
 
   // Einschreiben
@@ -133,6 +139,14 @@ function Termine({ user, token }) {
     if (!dateStr) return "";
     const d = new Date(dateStr);
     return d.toLocaleDateString("de-DE");
+  }
+
+  if (!user || !token) {
+    return (
+      <div style={{ padding: 32, textAlign: "center" }}>
+        <h2>Bitte einloggen, um Termine zu sehen.</h2>
+      </div>
+    );
   }
 
   return (

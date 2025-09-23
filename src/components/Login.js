@@ -30,7 +30,14 @@ function Login({ onLogin }) {
         username,
         password,
       });
-      onLogin(res.data.token, res.data.username, res.data.role);
+      // Korrigiert: Gib ein user-Objekt weiter, nicht nur username und role!
+      // Damit App.js und Termine.js den user korrekt erhalten.
+      const userObj = {
+        username: res.data.username,
+        role: res.data.role,
+        score: res.data.score, // falls vorhanden
+      };
+      onLogin(res.data.token, userObj);
     } catch (err) {
       setError(err.response?.data?.error || "Login fehlgeschlagen");
     } finally {

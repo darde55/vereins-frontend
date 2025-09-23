@@ -10,51 +10,45 @@ import UserEdit from "./components/UserEdit";
 
 function App() {
   const [token, setToken] = useState("");
-  const [role, setRole] = useState("");
-  const [username, setUsername] = useState("");
+  const [user, setUser] = useState(null); // user: {username, role, score?}
 
-  // Persistenz für Login
+  // Persistenz für Login (lädt einmal beim Start)
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
-    const savedUsername = localStorage.getItem("username");
-    const savedRole = localStorage.getItem("role");
-    if (savedToken && savedUsername && savedRole) {
+    const savedUser = localStorage.getItem("user");
+    if (savedToken && savedUser) {
       setToken(savedToken);
-      setUsername(savedUsername);
-      setRole(savedRole);
+      setUser(JSON.parse(savedUser));
     }
   }, []);
 
-  const handleLogin = (token, username, role) => {
+  // Login-Handler erwartet user-Objekt (mit username, role, ...)
+  const handleLogin = (token, userObj) => {
     setToken(token);
-    setRole(role);
-    setUsername(username);
+    setUser(userObj);
     localStorage.setItem("token", token);
-    localStorage.setItem("username", username);
-    localStorage.setItem("role", role);
+    localStorage.setItem("user", JSON.stringify(userObj));
   };
 
   const handleLogout = () => {
     setToken("");
-    setRole("");
-    setUsername("");
+    setUser(null);
     localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    localStorage.removeItem("role");
+    localStorage.removeItem("user");
   };
 
-  const isAdmin = role === "admin";
+  const isAdmin = user?.role === "admin";
 
   return (
     <Router>
-      <Navbar username={username} role={role} onLogout={handleLogout} />
+      <Navbar username={user?.username} role={user?.role} onLogout={handleLogout} />
       <Routes>
         <Route
           path="/"
           element={
-            !token
+            !token || !user
               ? <Login onLogin={handleLogin} />
-              : <Termine token={token} username={username} role={role} />
+              : <Termine token={token} user={user} />
           }
         />
         <Route
@@ -84,7 +78,7 @@ function App() {
         <Route
           path="/useredit/:id"
           element={
-            token
+            token && user
               ? <UserEdit token={token} isAdmin={isAdmin} />
               : <Navigate to="/" />
           }
