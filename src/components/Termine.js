@@ -3,20 +3,27 @@ import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import { FaChevronDown, FaChevronUp, FaEdit } from "react-icons/fa";
 
-// Großes Kalender-Design für Übersichtlichkeit
+// === HILFSFUNKTIONEN ===
+function formatDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("de-DE");
+}
+
+// === GROSSES KALENDER-STYLING ===
 const calendarStyle = {
   width: "100%",
-  maxWidth: "1100px",
-  minHeight: "480px",
+  maxWidth: "1200px",
+  minHeight: "520px",
   margin: "0 auto 32px auto",
-  fontSize: "1.22rem",
-  boxShadow: "0 2px 8px #0002",
-  borderRadius: "18px",
-  padding: "18px",
+  fontSize: "1.28rem",
+  boxShadow: "0 2px 16px #0002",
+  borderRadius: "22px",
+  padding: "24px",
   background: "#fff"
 };
 
-function Termine({ user, apiUrl, token }) {
+function Termine({ user, apiBaseUrl, token }) {
   const [termine, setTermine] = useState([]);
   const [rangliste, setRangliste] = useState([]);
   const [selectedDetails, setSelectedDetails] = useState({});
@@ -25,29 +32,36 @@ function Termine({ user, apiUrl, token }) {
   const [error, setError] = useState("");
   const [calendarValue, setCalendarValue] = useState(new Date());
 
-  // Daten holen
+  // === API ENDPOINTS ===
+  // apiBaseUrl soll z.B. "https://mein-backend-xyz.up.railway.app" oder "" (bei Proxy) sein!
+  const TERMINE_URL = `${apiBaseUrl}/api/termine`;
+  const USERS_URL = `${apiBaseUrl}/api/users`;
+
+  // === DATEN LADEN ===
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
       setError("");
       try {
-        // === Termine laden ===
-        const res = await fetch(apiUrl + "/termine", {
+        // --- Termine laden ---
+        const res = await fetch(TERMINE_URL, {
           headers: { Authorization: "Bearer " + token }
         });
+        if (!res.ok) throw new Error("Fehler beim Laden der Termine: " + res.status);
         const termineData = await res.json();
         if (!Array.isArray(termineData)) throw new Error("Termine-Format ungültig!");
         setTermine(termineData);
 
-        // === Rangliste laden ===
-        const res2 = await fetch(apiUrl + "/users", {
+        // --- Rangliste laden ---
+        const res2 = await fetch(USERS_URL, {
           headers: { Authorization: "Bearer " + token }
         });
+        if (!res2.ok) throw new Error("Fehler beim Laden der Nutzer: " + res2.status);
         const usersData = await res2.json();
         if (!Array.isArray(usersData)) throw new Error("Rangliste-Format ungültig!");
         setRangliste(usersData);
 
-        // === Nächster eigener Termin berechnen ===
+        // --- Nächster eigener Termin ---
         const myTermine = termineData
           .filter(
             t =>
@@ -67,12 +81,13 @@ function Termine({ user, apiUrl, token }) {
       setLoading(false);
     }
     fetchData();
-  }, [apiUrl, token, user?.username]);
+    // eslint-disable-next-line
+  }, [apiBaseUrl, token, user?.username]);
 
-  // Einschreiben
+  // === EINSCHREIBEN ===
   async function handleEinschreiben(terminId) {
     try {
-      await fetch(apiUrl + `/termine/${terminId}/teilnehmer`, {
+      await fetch(`${TERMINE_URL}/${terminId}/teilnehmer`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -86,12 +101,11 @@ function Termine({ user, apiUrl, token }) {
     }
   }
 
-  // Bearbeiten (Dummy)
   function handleBearbeiten(terminId) {
     alert("Bearbeiten von Termin " + terminId);
   }
 
-  // Kalender-Events für Markierung
+  // === KALENDER MARKIERUNG und TITEL ===
   const kalenderEvents = Array.isArray(termine)
     ? termine
         .filter(t => t && t.datum && t.titel)
@@ -101,7 +115,6 @@ function Termine({ user, apiUrl, token }) {
         }))
     : [];
 
-  // Tage mit Terminen markieren (V6: CSS-Klasse dynamisch setzen)
   function tileClassName({ date }) {
     if (
       kalenderEvents.some(ev => ev.date.toDateString() === date.toDateString())
@@ -111,7 +124,6 @@ function Termine({ user, apiUrl, token }) {
     return null;
   }
 
-  // Termin-Titel auf Kalendertag anzeigen
   function tileContent({ date }) {
     const events = kalenderEvents.filter(
       ev => ev.date.toDateString() === date.toDateString()
@@ -128,8 +140,9 @@ function Termine({ user, apiUrl, token }) {
     ) : null;
   }
 
+  // === RENDER ===
   return (
-    <div style={{ maxWidth: 1150, margin: "0 auto", padding: "20px" }}>
+    <div style={{ maxWidth: 1250, margin: "0 auto", padding: "32px" }}>
       <h2 style={{ marginTop: 0 }}>Kalender</h2>
       <div style={calendarStyle}>
         <Calendar
@@ -140,7 +153,7 @@ function Termine({ user, apiUrl, token }) {
           showNeighboringMonth={false}
           prev2Label={null}
           next2Label={null}
-          // calendarType gibt es in v6 NICHT mehr!
+          locale="de-DE"
         />
       </div>
       <style>
@@ -188,7 +201,7 @@ function Termine({ user, apiUrl, token }) {
                   >
                     <div>
                       <b style={{ fontSize: "1.12em" }}>{t.titel}</b>{" "}
-                      <span style={{ color: "#666" }}>{t.datum}</span>
+                      <span style={{ color: "#666" }}>{formatDate(t.datum)}</span>
                     </div>
                     <div>
                       {user?.role === "admin" && (
@@ -275,7 +288,7 @@ function Termine({ user, apiUrl, token }) {
             marginBottom: 24
           }}
         >
-          <b>{myNextTermin.titel}</b> am {myNextTermin.datum}
+          <b>{myNextTermin.titel}</b> am {formatDate(myNextTermin.datum)}
           <div>{myNextTermin.beschreibung}</div>
         </div>
       ) : (
