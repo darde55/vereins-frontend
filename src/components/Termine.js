@@ -8,9 +8,7 @@ import de from "date-fns/locale/de";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { FaChevronDown, FaChevronUp, FaEdit } from "react-icons/fa";
 
-const locales = {
-  "de": de,
-};
+const locales = { de };
 
 const localizer = dateFnsLocalizer({
   format,
@@ -86,7 +84,6 @@ function Termine({ user, token }) {
       setLoading(false);
     }
     fetchData();
-    // eslint-disable-next-line
   }, [token, user?.username]);
 
   // Einschreiben
@@ -107,6 +104,7 @@ function Termine({ user, token }) {
   }
 
   function handleBearbeiten(terminId) {
+    // Hier kannst du ein Modal oder einen Redirect zum Bearbeiten bauen
     alert("Bearbeiten von Termin " + terminId);
   }
 
@@ -196,20 +194,26 @@ function Termine({ user, token }) {
                       <span style={{ color: "#666" }}>{formatDate(t.datum)}</span>
                     </div>
                     <div>
+                      {/* Bearbeiten-Button für Admin */}
                       {user?.role === "admin" && (
                         <button
                           onClick={() => handleBearbeiten(t.id)}
                           title="Bearbeiten"
-                          style={{ marginRight: 8 }}
+                          style={{ marginRight: 8, cursor: "pointer", background: "#fffbe0", border: "1px solid #d1a100", color: "#d1a100", borderRadius: 6, padding: "0.32em 0.7em" }}
                         >
-                          <FaEdit />
+                          <FaEdit style={{ marginRight: 4, verticalAlign: "middle" }} />
+                          Bearbeiten
                         </button>
                       )}
+                      {/* Einschreiben-Button für eingeloggte User */}
                       {Array.isArray(t.teilnehmer) &&
                         user &&
                         user.username &&
                         !t.teilnehmer.includes(user.username) && (
-                          <button onClick={() => handleEinschreiben(t.id)}>
+                          <button
+                            onClick={() => handleEinschreiben(t.id)}
+                            style={{ background: "#e0f7fa", border: "1px solid #00b8d4", color: "#006064", borderRadius: 6, padding: "0.32em 0.7em", cursor: "pointer" }}
+                          >
                             Einschreiben
                           </button>
                         )}
@@ -220,7 +224,7 @@ function Termine({ user, token }) {
                             [t.id]: !sd[t.id]
                           }))
                         }
-                        style={{ marginLeft: 8 }}
+                        style={{ marginLeft: 8, cursor: "pointer", background: "#f3f3f3", border: "1px solid #bbb", borderRadius: 6, padding: "0.32em 0.7em" }}
                       >
                         {selectedDetails[t.id] ? <FaChevronUp /> : <FaChevronDown />}
                       </button>
