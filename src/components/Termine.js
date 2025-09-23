@@ -16,7 +16,11 @@ import {
   Stack,
   Avatar,
   Alert,
-  IconButton
+  Button,
+  Select,
+  MenuItem,
+  IconButton,
+  TextField,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
@@ -27,8 +31,9 @@ import PeopleIcon from "@mui/icons-material/People";
 import WhatshotIcon from "@mui/icons-material/Whatshot"; // Feuer
 import CleaningServicesIcon from "@mui/icons-material/CleaningServices"; // Besen
 import SportsIcon from "@mui/icons-material/Sports"; // Pfeife-Ersatz
-import DatePicker from "react-datepicker";
+import DeleteIcon from "@mui/icons-material/Delete";
 import "react-datepicker/dist/react-datepicker.css";
+import DatePicker from "react-datepicker";
 
 const API_URL =
   process.env.REACT_APP_API_URL?.replace(/\/$/, "") ||
@@ -39,6 +44,7 @@ function formatDateEU(dateStr) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("de-DE");
 }
+
 function formatTimeStr(str) {
   return str || "-";
 }
@@ -54,6 +60,11 @@ function getTerminIcon(titel) {
   return <CalendarTodayIcon sx={{ color: "#333" }} />;
 }
 
+function isAdmin(userList, username) {
+  const user = userList.find((u) => u.username === username);
+  return user?.role === "admin";
+}
+
 function Termine({ token, username }) {
   const [termine, setTermine] = useState([]);
   const [userList, setUserList] = useState([]);
@@ -61,6 +72,9 @@ function Termine({ token, username }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [selectedDate, setSelectedDate] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [anzahlEditing, setAnzahlEditing] = useState({});
+  const [anzahlEditValue, setAnzahlEditValue] = useState({});
 
   // User-Liste und Score laden
   useEffect(() => {
@@ -88,7 +102,7 @@ function Termine({ token, username }) {
     fetchData();
   }, [token, username]);
 
-  // Sortiere User nach Score absteigend
+  // Score-Rangliste absteigend sortieren
   const scoreRanking = [...userList]
     .sort((a, b) => (b.score || 0) - (a.score || 0))
     .map((u, i) => ({
@@ -98,10 +112,16 @@ function Termine({ token, username }) {
 
   // Kommende Termine (ab heute)
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   let termineFiltered = [...termine]
-    .filter((t) => new Date(t.datum) >= today)
+    .filter((t) => {
+      const date = new Date(t.datum);
+      date.setHours(0, 0, 0, 0);
+      return date >= today;
+    })
     .sort((a, b) => new Date(a.datum) - new Date(b.datum));
-  // Wenn ein Datum ausgewählt wurde im Kalender, nur Termine an diesem Tag zeigen
+
+  // Wenn ein Datum im Kalender ausgewählt wurde, nur Termine an diesem Tag zeigen
   if (selectedDate) {
     const selectedStr = selectedDate.toISOString().slice(0, 10);
     termineFiltered = termineFiltered.filter(
@@ -112,19 +132,85 @@ function Termine({ token, username }) {
   // Für Kalender: Liste aller Tage mit Termin (für Markierung)
   const termineDates = termine
     .map((t) => {
-      // "YYYY-MM-DD" zu Date
       const d = new Date(t.datum);
       d.setHours(0, 0, 0, 0);
       return d;
     });
 
-  // Markiert Tage mit Termin im Kalender
+  // Markiert Tage mit Termin im Kalender (CSS-Klasse)
   function highlightWithRanges(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
     return termineDates.some(
-      (d) => d.getTime() === date.setHours(0, 0, 0, 0)
+      (td) => td.getTime() === d.getTime()
     )
       ? "has-termin"
       : undefined;
+  }
+
+  function getSelectedDateLabel() {
+    if (!selectedDate) return "Deine nächsten Termine";
+    return `Termine am ${selectedDate.toLocaleDateString("de-DE")}`;
+  }
+
+  // ADMIN: Teilnehmer hinzufügen
+  async function addTeilnehmer(terminId, userToAdd) {
+    if (!userToAdd) return;
+    setSaving(true);
+    try {
+      await axios.post(`${API_URL}/termine/${terminId}/teilnehmer`, { username: userToAdd }, {
+        headers: { Authorization: "Bearer " + token }
+      });
+      // Nach dem Hinzufügen neu laden
+      const res = await axios.get(`${API_URL}/termine`, { headers: { Authorization: "Bearer " + token } });
+      setTermine(res.data || []);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ADMIN: Teilnehmer entfernen
+  async function removeTeilnehmer(terminId, userToRemove) {
+    setSaving(true);
+    try {
+      await axios.delete(`${API_URL}/termine/${terminId}/teilnehmer/${userToRemove}`, {
+        headers: { Authorization: "Bearer " + token }
+      });
+      // Nach dem Entfernen neu laden
+      const res = await axios.get(`${API_URL}/termine`, { headers: { Authorization: "Bearer " + token } });
+      setTermine(res.data || []);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ADMIN: Anzahl bearbeiten
+  function startEditAnzahl(terminId, currentVal) {
+    setAnzahlEditing((ae) => ({ ...ae, [terminId]: true }));
+    setAnzahlEditValue((av) => ({ ...av, [terminId]: currentVal }));
+  }
+  function cancelEditAnzahl(terminId) {
+    setAnzahlEditing((ae) => ({ ...ae, [terminId]: false }));
+    setAnzahlEditValue((av) => {
+      const newAV = { ...av };
+      delete newAV[terminId];
+      return newAV;
+    });
+  }
+  async function saveEditAnzahl(terminId) {
+    setSaving(true);
+    try {
+      const newVal = Number(anzahlEditValue[terminId]);
+      await axios.patch(`${API_URL}/termine/${terminId}`, { anzahl: newVal }, {
+        headers: { Authorization: "Bearer " + token }
+      });
+      // Reload
+      const res = await axios.get(`${API_URL}/termine`, { headers: { Authorization: "Bearer " + token } });
+      setTermine(res.data || []);
+    } finally {
+      setSaving(false);
+      cancelEditAnzahl(terminId);
+    }
   }
 
   return (
@@ -220,9 +306,7 @@ function Termine({ token, username }) {
       </Paper>
 
       <Typography variant="h6" sx={{ mb: 1 }}>
-        {selectedDate
-          ? `Termine am ${formatDateEU(selectedDate.toISOString())}`
-          : "Deine nächsten Termine"}
+        {getSelectedDateLabel()}
       </Typography>
       {termineFiltered.length === 0 && (
         <Alert severity="info">Keine (weiteren) Termine gefunden.</Alert>
@@ -232,7 +316,6 @@ function Termine({ token, username }) {
           <Accordion key={t.id}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Stack direction="row" spacing={2} alignItems="center" sx={{ width: "100%" }}>
-                {/* Icon je nach Titel */}
                 {getTerminIcon(t.titel)}
                 <Typography sx={{ minWidth: 100 }}>
                   {formatDateEU(t.datum)}
@@ -240,7 +323,11 @@ function Termine({ token, username }) {
                 <Typography sx={{ flex: 1 }}>{t.titel}</Typography>
                 <Chip
                   icon={<PeopleIcon />}
-                  label={`${t.teilnehmer?.length || 0} / ${t.anzahl}`}
+                  label={`${t.teilnehmer?.length || 0} / ${
+                    anzahlEditing[t.id]
+                      ? anzahlEditValue[t.id]
+                      : t.anzahl
+                  }`}
                   color={
                     (t.teilnehmer?.length || 0) >= t.anzahl
                       ? "error"
@@ -248,6 +335,49 @@ function Termine({ token, username }) {
                   }
                   size="small"
                 />
+                {/* Admin: Anzahl bearbeiten */}
+                {isAdmin(userList, username) && (
+                  anzahlEditing[t.id] ? (
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <TextField
+                        size="small"
+                        type="number"
+                        value={anzahlEditValue[t.id]}
+                        onChange={e => setAnzahlEditValue(av => ({ ...av, [t.id]: e.target.value }))}
+                        sx={{ width: 70 }}
+                        inputProps={{ min: 1 }}
+                        disabled={saving}
+                      />
+                      <Button
+                        size="small"
+                        color="success"
+                        variant="contained"
+                        onClick={() => saveEditAnzahl(t.id)}
+                        disabled={saving}
+                      >
+                        Speichern
+                      </Button>
+                      <Button
+                        size="small"
+                        color="inherit"
+                        variant="outlined"
+                        onClick={() => cancelEditAnzahl(t.id)}
+                        disabled={saving}
+                      >
+                        Abbrechen
+                      </Button>
+                    </Stack>
+                  ) : (
+                    <Button
+                      size="small"
+                      color="secondary"
+                      onClick={() => startEditAnzahl(t.id, t.anzahl)}
+                      disabled={saving}
+                    >
+                      Anzahl bearbeiten
+                    </Button>
+                  )
+                )}
               </Stack>
             </AccordionSummary>
             <AccordionDetails>
@@ -282,7 +412,7 @@ function Termine({ token, username }) {
                 <Typography sx={{ mb: 1 }}>
                   <b>Eingeschriebene Nutzer:</b>
                 </Typography>
-                <Stack direction="row" spacing={1}>
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
                   {(t.teilnehmer && t.teilnehmer.length > 0) ? (
                     t.teilnehmer.map((name) => (
                       <Chip
@@ -295,12 +425,41 @@ function Termine({ token, username }) {
                         label={name}
                         color={name === username ? "primary" : "default"}
                         size="small"
+                        onDelete={
+                          isAdmin(userList, username)
+                            ? () => removeTeilnehmer(t.id, name)
+                            : undefined
+                        }
+                        deleteIcon={isAdmin(userList, username) ? <DeleteIcon /> : undefined}
+                        disabled={saving}
                       />
                     ))
                   ) : (
                     <Typography sx={{ ml: 1 }}>Noch keine</Typography>
                   )}
                 </Stack>
+                {/* Admin: Nutzer hinzufügen */}
+                {isAdmin(userList, username) && (
+                  <Box sx={{ mt: 1 }}>
+                    <Select
+                      displayEmpty
+                      value=""
+                      onChange={e => addTeilnehmer(t.id, e.target.value)}
+                      size="small"
+                      sx={{ minWidth: 180, mr: 2 }}
+                      disabled={saving}
+                    >
+                      <MenuItem value="">Nutzer hinzufügen...</MenuItem>
+                      {userList
+                        .filter(u => !t.teilnehmer?.includes(u.username))
+                        .map(u => (
+                          <MenuItem key={u.username} value={u.username}>
+                            {u.username}
+                          </MenuItem>
+                        ))}
+                    </Select>
+                  </Box>
+                )}
               </Box>
               <Box>
                 <Typography>
