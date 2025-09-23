@@ -14,6 +14,8 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PersonIcon from "@mui/icons-material/Person";
 import MailOutlineIcon from "@mui/icons-material/Mail";
 import StarIcon from "@mui/icons-material/Star";
+import MenuItem from "@mui/material/MenuItem";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 
 // API-URL zentral holen
 const API_URL =
@@ -31,10 +33,37 @@ function parseDateEU(str) {
   return new Date(`${year}-${month}-${day}T00:00:00`);
 }
 
+// Zeitformatierung (z.B. "14:30")
+function formatTime(date) {
+  if (!date) return "";
+  return date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+}
+
+// "14:30" zu Date-Objekt
+function parseTime(str) {
+  if (!/^\d{2}:\d{2}$/.test(str)) return null;
+  const [hours, minutes] = str.split(":").map(Number);
+  const d = new Date();
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+}
+
+const beschreibungOptionen = [
+  { value: "", label: "Eigener Eintrag" },
+  { value: "Schiedsrichter", label: "Schiedsrichter" },
+  { value: "Griller", label: "Griller" },
+  { value: "Pflege", label: "Pflege" },
+];
+
 function NeuerTermin({ token }) {
   const [titel, setTitel] = useState("");
   const [datum, setDatum] = useState(null);
+  const [beginn, setBeginn] = useState(null);
+  const [ende, setEnde] = useState(null);
+  const [inputBeginn, setInputBeginn] = useState("");
+  const [inputEnde, setInputEnde] = useState("");
   const [beschreibung, setBeschreibung] = useState("");
+  const [beschreibungDropdown, setBeschreibungDropdown] = useState("");
   const [anzahl, setAnzahl] = useState(1);
   const [stichtag, setStichtag] = useState(null);
   const [inputDate, setInputDate] = useState("");
@@ -44,11 +73,26 @@ function NeuerTermin({ token }) {
   const [score, setScore] = useState(0);
   const [msg, setMsg] = useState("");
 
+  // Wenn Dropdown gewählt wird, setze Beschreibung entsprechend
+  const handleBeschreibungDropdown = (e) => {
+    setBeschreibungDropdown(e.target.value);
+    setBeschreibung(e.target.value);
+  };
+
+  const handleBeschreibungInput = (e) => {
+    setBeschreibung(e.target.value);
+    setBeschreibungDropdown("");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMsg("");
     if (!datum) {
       setMsg("Bitte gültiges Datum wählen oder eingeben (TT.MM.JJJJ).");
+      return;
+    }
+    if ((inputBeginn && !beginn) || (inputEnde && !ende)) {
+      setMsg("Bitte gültige Uhrzeit für Beginn und Ende angeben (z.B. 14:00).");
       return;
     }
     if (ansprechpartnerMail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ansprechpartnerMail)) {
@@ -61,6 +105,8 @@ function NeuerTermin({ token }) {
         {
           titel,
           datum: datum.toISOString().slice(0, 10),
+          beginn: beginn ? formatTime(beginn) : null,
+          ende: ende ? formatTime(ende) : null,
           beschreibung,
           anzahl,
           stichtag: stichtag ? stichtag.toISOString().slice(0, 10) : null,
@@ -75,10 +121,15 @@ function NeuerTermin({ token }) {
       setMsg("Termin erfolgreich angelegt!");
       setTitel("");
       setDatum(null);
-      setInputDate("");
+      setBeginn(null);
+      setEnde(null);
+      setInputBeginn("");
+      setInputEnde("");
       setBeschreibung("");
+      setBeschreibungDropdown("");
       setAnzahl(1);
       setStichtag(null);
+      setInputDate("");
       setInputStichtag("");
       setAnsprechpartnerName("");
       setAnsprechpartnerMail("");
@@ -112,9 +163,27 @@ function NeuerTermin({ token }) {
     setStichtag(parsed);
   };
 
+  // Beginn/Ende: DatePicker + manuelle Eingabe
+  const handleBeginnChange = (date) => {
+    setBeginn(date);
+    setInputBeginn(formatTime(date));
+  };
+  const handleInputBeginnChange = (e) => {
+    setInputBeginn(e.target.value);
+    setBeginn(parseTime(e.target.value));
+  };
+  const handleEndeChange = (date) => {
+    setEnde(date);
+    setInputEnde(formatTime(date));
+  };
+  const handleInputEndeChange = (e) => {
+    setInputEnde(e.target.value);
+    setEnde(parseTime(e.target.value));
+  };
+
   return (
     <Box sx={{ display: "flex", justifyContent: "center", alignItems: "flex-start", minHeight: "70vh" }}>
-      <Paper elevation={4} sx={{ p: 4, maxWidth: 450, width: "100%" }}>
+      <Paper elevation={4} sx={{ p: 4, maxWidth: 500, width: "100%" }}>
         <Typography variant="h5" sx={{ mb: 3 }}>
           Neuen Termin anlegen
         </Typography>
@@ -155,6 +224,102 @@ function NeuerTermin({ token }) {
               required
             />
           </Box>
+          <Box sx={{ mb: 2, display: "flex", gap: 2 }}>
+            <DatePicker
+              selected={beginn}
+              onChange={handleBeginnChange}
+              showTimeSelect
+              showTimeSelectOnly
+              timeIntervals={15}
+              timeCaption="Beginn"
+              dateFormat="HH:mm"
+              customInput={
+                <TextField
+                  label="Beginn"
+                  value={inputBeginn}
+                  onChange={handleInputBeginnChange}
+                  fullWidth
+                  required
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <AccessTimeIcon />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              }
+              isClearable
+            />
+            <DatePicker
+              selected={ende}
+              onChange={handleEndeChange}
+              showTimeSelect
+              showTimeSelectOnly
+              timeIntervals={15}
+              timeCaption="Ende"
+              dateFormat="HH:mm"
+              customInput={
+                <TextField
+                  label="Ende"
+                  value={inputEnde}
+                  onChange={handleInputEndeChange}
+                  fullWidth
+                  required
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <AccessTimeIcon />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              }
+              isClearable
+            />
+          </Box>
+          {/* Beschreibung: Dropdown ODER Freitext */}
+          <TextField
+            select
+            label="Beschreibung wählen"
+            value={beschreibungDropdown}
+            onChange={handleBeschreibungDropdown}
+            fullWidth
+            margin="normal"
+            sx={{ mb: 1 }}
+          >
+            {beschreibungOptionen.map(opt => (
+              <MenuItem value={opt.value} key={opt.value}>
+                {opt.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Beschreibung (optional, eigener Eintrag)"
+            value={beschreibungDropdown ? beschreibungDropdown : beschreibung}
+            onChange={handleBeschreibungInput}
+            fullWidth
+            margin="normal"
+            placeholder="z.B. Platzpflege, Grillen, Schiri etc."
+            disabled={!!beschreibungDropdown}
+          />
+          <TextField
+            label="Benötigte Personen"
+            type="number"
+            min={1}
+            value={anzahl}
+            onChange={e => setAnzahl(Number(e.target.value))}
+            fullWidth
+            margin="normal"
+            required
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PeopleIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
           <Box sx={{ mb: 2 }}>
             <DatePicker
               selected={stichtag}
@@ -181,30 +346,6 @@ function NeuerTermin({ token }) {
               dropdownMode="select"
             />
           </Box>
-          <TextField
-            label="Beschreibung"
-            value={beschreibung}
-            onChange={e => setBeschreibung(e.target.value)}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            label="Benötigte Personen"
-            type="number"
-            min={1}
-            value={anzahl}
-            onChange={e => setAnzahl(Number(e.target.value))}
-            fullWidth
-            margin="normal"
-            required
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <PeopleIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
           <TextField
             label="Ansprechpartner Name"
             value={ansprechpartnerName}
