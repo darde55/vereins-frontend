@@ -16,6 +16,7 @@ import {
   Stack,
   Avatar,
   Alert,
+  IconButton
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
@@ -23,6 +24,11 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PersonIcon from "@mui/icons-material/Person";
 import StarIcon from "@mui/icons-material/Star";
 import PeopleIcon from "@mui/icons-material/People";
+import WhatshotIcon from "@mui/icons-material/Whatshot"; // Feuer
+import CleaningServicesIcon from "@mui/icons-material/CleaningServices"; // Besen
+import SportsIcon from "@mui/icons-material/Sports"; // Pfeife-Ersatz
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 const API_URL =
   process.env.REACT_APP_API_URL?.replace(/\/$/, "") ||
@@ -37,14 +43,26 @@ function formatTimeStr(str) {
   return str || "-";
 }
 
+// Ordnet das passende Icon zum Titel zu
+function getTerminIcon(titel) {
+  if (titel?.toLowerCase().includes("schiedsrichter"))
+    return <SportsIcon titleAccess="Schiedsrichter" sx={{ color: "#666" }} />;
+  if (titel?.toLowerCase().includes("griller"))
+    return <WhatshotIcon titleAccess="Griller" sx={{ color: "#d84315" }} />;
+  if (titel?.toLowerCase().includes("pflege"))
+    return <CleaningServicesIcon titleAccess="Pflege" sx={{ color: "#43a047" }} />;
+  return <CalendarTodayIcon sx={{ color: "#333" }} />;
+}
+
 function Termine({ token, username }) {
   const [termine, setTermine] = useState([]);
   const [userList, setUserList] = useState([]);
   const [myScore, setMyScore] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [selectedDate, setSelectedDate] = useState(null);
 
-  // User-Liste und Score laden (Admin sieht alle, User nur sich selbst)
+  // User-Liste und Score laden
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
@@ -80,9 +98,34 @@ function Termine({ token, username }) {
 
   // Kommende Termine (ab heute)
   const today = new Date();
-  const upcoming = [...termine]
+  let termineFiltered = [...termine]
     .filter((t) => new Date(t.datum) >= today)
     .sort((a, b) => new Date(a.datum) - new Date(b.datum));
+  // Wenn ein Datum ausgewählt wurde im Kalender, nur Termine an diesem Tag zeigen
+  if (selectedDate) {
+    const selectedStr = selectedDate.toISOString().slice(0, 10);
+    termineFiltered = termineFiltered.filter(
+      (t) => t.datum === selectedStr
+    );
+  }
+
+  // Für Kalender: Liste aller Tage mit Termin (für Markierung)
+  const termineDates = termine
+    .map((t) => {
+      // "YYYY-MM-DD" zu Date
+      const d = new Date(t.datum);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    });
+
+  // Markiert Tage mit Termin im Kalender
+  function highlightWithRanges(date) {
+    return termineDates.some(
+      (d) => d.getTime() === date.setHours(0, 0, 0, 0)
+    )
+      ? "has-termin"
+      : undefined;
+  }
 
   return (
     <Box sx={{ maxWidth: 900, mx: "auto", my: 2 }}>
@@ -148,18 +191,49 @@ function Termine({ token, username }) {
         </Table>
       </Paper>
 
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          Kalender
+        </Typography>
+        <DatePicker
+          selected={selectedDate}
+          onChange={(date) => setSelectedDate(date)}
+          highlightDates={[
+            {
+              'react-datepicker__day--highlighted-custom-1': termineDates
+            }
+          ]}
+          dayClassName={highlightWithRanges}
+          inline
+          calendarStartDay={1}
+          locale="de"
+        />
+        <Box sx={{ mt: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setSelectedDate(null)}
+          >
+            Alle kommenden Termine anzeigen
+          </Button>
+        </Box>
+      </Paper>
+
       <Typography variant="h6" sx={{ mb: 1 }}>
-        Deine nächsten Termine
+        {selectedDate
+          ? `Termine am ${formatDateEU(selectedDate.toISOString())}`
+          : "Deine nächsten Termine"}
       </Typography>
-      {upcoming.length === 0 && (
-        <Alert severity="info">Keine kommenden Termine.</Alert>
+      {termineFiltered.length === 0 && (
+        <Alert severity="info">Keine (weiteren) Termine gefunden.</Alert>
       )}
       <Stack spacing={2}>
-        {upcoming.map((t) => (
+        {termineFiltered.map((t) => (
           <Accordion key={t.id}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Stack direction="row" spacing={2} alignItems="center" sx={{ width: "100%" }}>
-                <CalendarTodayIcon fontSize="small" />
+                {/* Icon je nach Titel */}
+                {getTerminIcon(t.titel)}
                 <Typography sx={{ minWidth: 100 }}>
                   {formatDateEU(t.datum)}
                 </Typography>
@@ -237,6 +311,15 @@ function Termine({ token, username }) {
           </Accordion>
         ))}
       </Stack>
+      <style>
+        {`
+        .has-termin {
+          border-radius: 50%;
+          background: #ffc107 !important;
+          color: #222 !important;
+        }
+        `}
+      </style>
     </Box>
   );
 }

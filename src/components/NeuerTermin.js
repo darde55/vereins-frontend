@@ -33,13 +33,11 @@ function parseDateEU(str) {
   return new Date(`${year}-${month}-${day}T00:00:00`);
 }
 
-// Zeitformatierung (z.B. "14:30")
 function formatTime(date) {
   if (!date) return "";
   return date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 }
 
-// "14:30" zu Date-Objekt
 function parseTime(str) {
   if (!/^\d{2}:\d{2}$/.test(str)) return null;
   const [hours, minutes] = str.split(":").map(Number);
@@ -48,7 +46,7 @@ function parseTime(str) {
   return d;
 }
 
-const beschreibungOptionen = [
+const titelOptionen = [
   { value: "", label: "Eigener Eintrag" },
   { value: "Schiedsrichter", label: "Schiedsrichter" },
   { value: "Griller", label: "Griller" },
@@ -57,13 +55,13 @@ const beschreibungOptionen = [
 
 function NeuerTermin({ token }) {
   const [titel, setTitel] = useState("");
+  const [titelDropdown, setTitelDropdown] = useState("");
   const [datum, setDatum] = useState(null);
   const [beginn, setBeginn] = useState(null);
   const [ende, setEnde] = useState(null);
   const [inputBeginn, setInputBeginn] = useState("");
   const [inputEnde, setInputEnde] = useState("");
   const [beschreibung, setBeschreibung] = useState("");
-  const [beschreibungDropdown, setBeschreibungDropdown] = useState("");
   const [anzahl, setAnzahl] = useState(1);
   const [stichtag, setStichtag] = useState(null);
   const [inputDate, setInputDate] = useState("");
@@ -73,15 +71,15 @@ function NeuerTermin({ token }) {
   const [score, setScore] = useState(0);
   const [msg, setMsg] = useState("");
 
-  // Wenn Dropdown gewählt wird, setze Beschreibung entsprechend
-  const handleBeschreibungDropdown = (e) => {
-    setBeschreibungDropdown(e.target.value);
-    setBeschreibung(e.target.value);
+  // Titel Dropdown-Handler
+  const handleTitelDropdown = (e) => {
+    setTitelDropdown(e.target.value);
+    setTitel(e.target.value);
   };
 
-  const handleBeschreibungInput = (e) => {
-    setBeschreibung(e.target.value);
-    setBeschreibungDropdown("");
+  const handleTitelInput = (e) => {
+    setTitel(e.target.value);
+    setTitelDropdown("");
   };
 
   const handleSubmit = async (e) => {
@@ -93,6 +91,10 @@ function NeuerTermin({ token }) {
     }
     if ((inputBeginn && !beginn) || (inputEnde && !ende)) {
       setMsg("Bitte gültige Uhrzeit für Beginn und Ende angeben (z.B. 14:00).");
+      return;
+    }
+    if (!titel) {
+      setMsg("Bitte einen Titel angeben oder auswählen.");
       return;
     }
     if (ansprechpartnerMail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ansprechpartnerMail)) {
@@ -120,13 +122,13 @@ function NeuerTermin({ token }) {
       );
       setMsg("Termin erfolgreich angelegt!");
       setTitel("");
+      setTitelDropdown("");
       setDatum(null);
       setBeginn(null);
       setEnde(null);
       setInputBeginn("");
       setInputEnde("");
       setBeschreibung("");
-      setBeschreibungDropdown("");
       setAnzahl(1);
       setStichtag(null);
       setInputDate("");
@@ -188,13 +190,31 @@ function NeuerTermin({ token }) {
           Neuen Termin anlegen
         </Typography>
         <Box component="form" onSubmit={handleSubmit} autoComplete="off">
+          {/* Titel: Dropdown oder Freitext */}
           <TextField
-            label="Titel"
-            value={titel}
-            onChange={e => setTitel(e.target.value)}
+            select
+            label="Titel wählen"
+            value={titelDropdown}
+            onChange={handleTitelDropdown}
             fullWidth
             margin="normal"
-            required
+            sx={{ mb: 1 }}
+          >
+            {titelOptionen.map(opt => (
+              <MenuItem value={opt.value} key={opt.value}>
+                {opt.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Titel (eigener Eintrag)"
+            value={titelDropdown ? titelDropdown : titel}
+            onChange={handleTitelInput}
+            fullWidth
+            margin="normal"
+            required={!titelDropdown}
+            placeholder="Individueller Titel"
+            disabled={!!titelDropdown}
           />
           <Box sx={{ mb: 2 }}>
             <DatePicker
@@ -278,30 +298,14 @@ function NeuerTermin({ token }) {
               isClearable
             />
           </Box>
-          {/* Beschreibung: Dropdown ODER Freitext */}
+          {/* Beschreibung: immer Freitext */}
           <TextField
-            select
-            label="Beschreibung wählen"
-            value={beschreibungDropdown}
-            onChange={handleBeschreibungDropdown}
+            label="Beschreibung"
+            value={beschreibung}
+            onChange={e => setBeschreibung(e.target.value)}
             fullWidth
             margin="normal"
-            sx={{ mb: 1 }}
-          >
-            {beschreibungOptionen.map(opt => (
-              <MenuItem value={opt.value} key={opt.value}>
-                {opt.label}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            label="Beschreibung (optional, eigener Eintrag)"
-            value={beschreibungDropdown ? beschreibungDropdown : beschreibung}
-            onChange={handleBeschreibungInput}
-            fullWidth
-            margin="normal"
-            placeholder="z.B. Platzpflege, Grillen, Schiri etc."
-            disabled={!!beschreibungDropdown}
+            placeholder="z.B. Punktspiel, Training etc."
           />
           <TextField
             label="Benötigte Personen"
