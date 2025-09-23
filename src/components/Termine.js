@@ -1,364 +1,197 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
-import {
-  Box,
-  Typography,
-  Button,
-  TextField,
-  Stack,
-  Paper,
-  Alert,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
-} from "@mui/material";
+import Calendar from "react-calendar"; // oder react-big-calendar
+import "react-calendar/dist/Calendar.css";
+import { FaChevronDown, FaChevronUp, FaEdit } from "react-icons/fa";
 
-const API_URL =
-  process.env.REACT_APP_API_URL?.replace(/\/$/, "") ||
-  "https://vereins-backend-production.up.railway.app/api";
-
-function isAdmin(userList, username) {
-  const user = userList.find((u) => u.username === username);
-  return user?.role === "admin";
-}
-
-function Termine({ token, username }) {
+function Termine({ user, apiUrl, token }) {
   const [termine, setTermine] = useState([]);
-  const [userList, setUserList] = useState([]);
-  const [err, setErr] = useState("");
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [rangliste, setRangliste] = useState([]);
+  const [selectedDetails, setSelectedDetails] = useState({});
+  const [myNextTermin, setMyNextTermin] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const [showCreate, setShowCreate] = useState(false);
-  const [createData, setCreateData] = useState({
-    titel: "",
-    datum: "",
-    beginn: "",
-    ende: "",
-    beschreibung: "",
-    anzahl: 1,
-    score: 0,
-    ansprechpartner_name: "",
-    ansprechpartner_mail: "",
-  });
-  const [createErr, setCreateErr] = useState("");
-  const [createSaving, setCreateSaving] = useState(false);
-
-  // Daten laden
+  // Termine und Rangliste laden
   useEffect(() => {
     async function fetchData() {
+      setLoading(true);
       try {
-        setErr("");
-        const [termineRes, usersRes] = await Promise.all([
-          axios.get(`${API_URL}/termine`, {
-            headers: { Authorization: "Bearer " + token },
-          }),
-          axios.get(`${API_URL}/users`, {
-            headers: { Authorization: "Bearer " + token },
-          }),
-        ]);
-        setTermine(Array.isArray(termineRes.data) ? termineRes.data : []);
-        setUserList(Array.isArray(usersRes.data) ? usersRes.data : []);
+        // Termine
+        const res = await fetch(apiUrl + "/termine", {
+          headers: { Authorization: "Bearer " + token }
+        });
+        const termineData = await res.json();
+        setTermine(termineData);
+
+        // Rangliste (alle users)
+        const res2 = await fetch(apiUrl + "/users", {
+          headers: { Authorization: "Bearer " + token }
+        });
+        setRangliste(await res2.json());
+
+        // Nächster Termin, an dem User eingetragen ist
+        const myTermine = termineData
+          .filter(t => t.teilnehmer && t.teilnehmer.includes(user.username))
+          .sort((a, b) => new Date(a.datum) - new Date(b.datum));
+        setMyNextTermin(myTermine[0] || null);
+
       } catch (e) {
-        setErr(
-          e.response?.data?.error ||
-            "Fehler beim Laden der Daten. Prüfe Backend und Token."
-        );
+        setTermine([]);
+        setRangliste([]);
       }
+      setLoading(false);
     }
     fetchData();
-  }, [token]);
+  }, [apiUrl, token, user.username]);
 
-  const scoreRanking = [...userList]
-    .sort((a, b) => (b.score || 0) - (a.score || 0))
-    .map((u, i) => ({
-      ...u,
-      rank: i + 1,
-    }));
-
-  function getSelectedDateLabel() {
-    if (!selectedDate) return "Deine nächsten Termine";
-    return `Termine am ${selectedDate.toLocaleDateString("de-DE")}`;
+  // Einschreiben-Handler
+  async function handleEinschreiben(terminId) {
+    await fetch(apiUrl + `/termine/${terminId}/teilnehmer`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token
+      },
+      body: JSON.stringify({ username: user.username })
+    });
+    // Reload Termine nach dem Einschreiben
+    window.location.reload();
   }
 
-  // Termine nach Datum filtern
-  const angezeigteTermine = selectedDate
-    ? termine.filter(
-        (t) =>
-          t.datum &&
-          new Date(t.datum).toDateString() ===
-            selectedDate.toDateString()
-      )
-    : termine;
-
-  // Termin anlegen (nur Admin)
-  async function handleCreateTermin(e) {
-    e.preventDefault();
-    setCreateErr("");
-    setCreateSaving(true);
-    try {
-      await axios.post(`${API_URL}/termine`, createData, {
-        headers: { Authorization: "Bearer " + token },
-      });
-      setShowCreate(false);
-      setCreateData({
-        titel: "",
-        datum: "",
-        beginn: "",
-        ende: "",
-        beschreibung: "",
-        anzahl: 1,
-        score: 0,
-        ansprechpartner_name: "",
-        ansprechpartner_mail: "",
-      });
-      // Nach Anlegen neu laden
-      const res = await axios.get(`${API_URL}/termine`, {
-        headers: { Authorization: "Bearer " + token },
-      });
-      setTermine(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
-      setCreateErr(e.response?.data?.error || "Fehler beim Anlegen");
-    }
-    setCreateSaving(false);
+  // Bearbeiten-Handler für Admin (hier evtl. Modal öffnen, Dummy)
+  function handleBearbeiten(terminId) {
+    alert("Bearbeiten von Termin " + terminId);
+    // Hier ein Modal oder Seite zum Bearbeiten öffnen
   }
 
-  function handleDateChange(e) {
-    const val = e.target.value;
-    if (!val) {
-      setSelectedDate(null);
-    } else {
-      setSelectedDate(new Date(val));
-    }
-  }
+  // Kalender-Events vorbereiten
+  const kalenderEvents = termine.map(t => ({
+    date: new Date(t.datum),
+    title: t.titel
+  }));
 
   return (
-    <Box sx={{ maxWidth: 900, mx: "auto", my: 2 }}>
-      <Typography variant="h4" sx={{ mb: 2 }}>
-        Vereins-Termine
-      </Typography>
+    <div style={{ maxWidth: 900, margin: "0 auto" }}>
+      {/* 1. Großer Kalender */}
+      <h2>Kalender</h2>
+      <Calendar
+        tileContent={({ date, view }) => {
+          // Zeige Termin-Titel am jeweiligen Datum
+          const events = kalenderEvents.filter(ev =>
+            ev.date.toDateString() === date.toDateString()
+          );
+          return events.length > 0 ? (
+            <div style={{ fontSize: 9, color: "blue" }}>
+              {events.map(ev => ev.title).join(", ")}
+            </div>
+          ) : null;
+        }}
+      />
 
-      {err && <Alert severity="error">{err}</Alert>}
-
-      {/* Datumsauswahl */}
-      <Box sx={{ mb: 2 }}>
-        <TextField
-          label="Datum filtern"
-          type="date"
-          size="small"
-          InputLabelProps={{ shrink: true }}
-          value={selectedDate ? selectedDate.toISOString().slice(0, 10) : ""}
-          onChange={handleDateChange}
-          sx={{ mr: 2 }}
-        />
-        <Button
-          onClick={() => setSelectedDate(null)}
-          disabled={!selectedDate}
-          variant="outlined"
-        >
-          Filter zurücksetzen
-        </Button>
-      </Box>
-
-      {/* Admin: Termin anlegen */}
-      {isAdmin(userList, username) && (
-        <Box sx={{ mb: 3 }}>
-          <Button
-            variant={showCreate ? "outlined" : "contained"}
-            color="primary"
-            onClick={() => setShowCreate((s) => !s)}
-            sx={{ mb: 1 }}
-          >
-            {showCreate ? "Abbrechen" : "Neuen Termin anlegen"}
-          </Button>
-          {showCreate && (
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Typography variant="h6" sx={{ mb: 1 }}>
-                Termin anlegen
-              </Typography>
-              <form onSubmit={handleCreateTermin}>
-                <Stack spacing={2}>
-                  <TextField
-                    label="Titel"
-                    required
-                    value={createData.titel}
-                    onChange={(e) =>
-                      setCreateData((d) => ({ ...d, titel: e.target.value }))
-                    }
-                  />
-                  <TextField
-                    label="Datum"
-                    type="date"
-                    required
-                    InputLabelProps={{ shrink: true }}
-                    value={createData.datum}
-                    onChange={(e) =>
-                      setCreateData((d) => ({ ...d, datum: e.target.value }))
-                    }
-                  />
-                  <TextField
-                    label="Beginn"
-                    type="time"
-                    InputLabelProps={{ shrink: true }}
-                    value={createData.beginn}
-                    onChange={(e) =>
-                      setCreateData((d) => ({ ...d, beginn: e.target.value }))
-                    }
-                  />
-                  <TextField
-                    label="Ende"
-                    type="time"
-                    InputLabelProps={{ shrink: true }}
-                    value={createData.ende}
-                    onChange={(e) =>
-                      setCreateData((d) => ({ ...d, ende: e.target.value }))
-                    }
-                  />
-                  <TextField
-                    label="Beschreibung"
-                    multiline
-                    minRows={2}
-                    value={createData.beschreibung}
-                    onChange={(e) =>
-                      setCreateData((d) => ({
-                        ...d,
-                        beschreibung: e.target.value,
-                      }))
-                    }
-                  />
-                  <TextField
-                    label="Max. Teilnehmer"
-                    type="number"
-                    required
-                    inputProps={{ min: 1 }}
-                    value={createData.anzahl}
-                    onChange={(e) =>
-                      setCreateData((d) => ({
-                        ...d,
-                        anzahl: Number(e.target.value),
-                      }))
-                    }
-                  />
-                  <TextField
-                    label="Score für Teilnahme"
-                    type="number"
-                    value={createData.score}
-                    onChange={(e) =>
-                      setCreateData((d) => ({
-                        ...d,
-                        score: Number(e.target.value),
-                      }))
-                    }
-                  />
-                  <TextField
-                    label="Ansprechpartner Name"
-                    value={createData.ansprechpartner_name}
-                    onChange={(e) =>
-                      setCreateData((d) => ({
-                        ...d,
-                        ansprechpartner_name: e.target.value,
-                      }))
-                    }
-                  />
-                  <TextField
-                    label="Ansprechpartner E-Mail"
-                    type="email"
-                    value={createData.ansprechpartner_mail}
-                    onChange={(e) =>
-                      setCreateData((d) => ({
-                        ...d,
-                        ansprechpartner_mail: e.target.value,
-                      }))
-                    }
-                  />
-                  {createErr && <Alert severity="error">{createErr}</Alert>}
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="success"
-                    disabled={createSaving}
-                  >
-                    Termin speichern
-                  </Button>
-                </Stack>
-              </form>
-            </Paper>
-          )}
-        </Box>
+      {/* 2. Termin-Liste */}
+      <h2>Alle Termine</h2>
+      {loading ? <div>Lade Termine...</div> : (
+        <div>
+          {termine.map(t => (
+            <div key={t.id} style={{
+              background: "#f7f7fa",
+              margin: "16px 0",
+              borderRadius: 8,
+              padding: 16,
+              boxShadow: "0 1px 4px #0001"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <b>{t.titel}</b> <span style={{ color: "#666" }}>{t.datum}</span>
+                </div>
+                <div>
+                  {user.role === "admin" && (
+                    <button onClick={() => handleBearbeiten(t.id)} title="Bearbeiten" style={{ marginRight: 8 }}>
+                      <FaEdit />
+                    </button>
+                  )}
+                  {!t.teilnehmer?.includes(user.username) && (
+                    <button onClick={() => handleEinschreiben(t.id)}>
+                      Einschreiben
+                    </button>
+                  )}
+                  <button onClick={() =>
+                    setSelectedDetails(sd => ({
+                      ...sd, [t.id]: !sd[t.id]
+                    }))
+                  } style={{ marginLeft: 8 }}>
+                    {selectedDetails[t.id] ? <FaChevronUp /> : <FaChevronDown />}
+                  </button>
+                </div>
+              </div>
+              {/* Details */}
+              {selectedDetails[t.id] && (
+                <div style={{ marginTop: 10, color: "#222" }}>
+                  <div><b>Beginn:</b> {t.beginn}</div>
+                  <div><b>Ende:</b> {t.ende}</div>
+                  <div><b>Beschreibung:</b> {t.beschreibung}</div>
+                  <div>
+                    <b>Teilnehmer:</b> {t.teilnehmer?.length || 0} / {t.anzahl}
+                    <div>
+                      {t.teilnehmer?.map(name => (
+                        <span key={name} style={{ marginRight: 8 }}>{name}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        {getSelectedDateLabel()}
-      </Typography>
+      {/* 3. Nächster eigener Termin */}
+      <h2>Dein nächster Termin</h2>
+      {myNextTermin ? (
+        <div style={{
+          background: "#e0ffe0",
+          padding: 16,
+          borderRadius: 8,
+          marginBottom: 24
+        }}>
+          <b>{myNextTermin.titel}</b> am {myNextTermin.datum}
+          <div>{myNextTermin.beschreibung}</div>
+        </div>
+      ) : (
+        <div>Du bist für keinen Termin eingeschrieben.</div>
+      )}
 
-      {/* Terminliste */}
-      <Paper>
-        <List>
-          {angezeigteTermine.length === 0 && (
-            <ListItem>
-              <ListItemText primary="Keine Termine gefunden." />
-            </ListItem>
-          )}
-          {angezeigteTermine.map((t) => (
-            <React.Fragment key={t.id}>
-              <ListItem alignItems="flex-start">
-                <ListItemText
-                  primary={`${t.titel} (${new Date(t.datum).toLocaleDateString("de-DE")}${
-                    t.beginn ? ", " + t.beginn : ""
-                  }${t.ende ? " - " + t.ende : ""})`}
-                  secondary={
-                    <>
-                      {t.beschreibung && (
-                        <>
-                          <span>{t.beschreibung}</span>
-                          <br />
-                        </>
-                      )}
-                      <span>
-                        Max. Teilnehmer: <b>{t.anzahl}</b>
-                        {t.score ? <> | Score: <b>{t.score}</b></> : null}
-                      </span>
-                      <br />
-                      {t.ansprechpartner_name && (
-                        <>
-                          Ansprechpartner: {t.ansprechpartner_name}
-                          {t.ansprechpartner_mail && (
-                            <> ({t.ansprechpartner_mail})</>
-                          )}
-                          <br />
-                        </>
-                      )}
-                      <span>
-                        Teilnehmer:{" "}
-                        {Array.isArray(t.teilnehmer) && t.teilnehmer.length > 0
-                          ? t.teilnehmer.join(", ")
-                          : "Keine"}
-                      </span>
-                    </>
-                  }
-                />
-              </ListItem>
-              <Divider component="li" />
-            </React.Fragment>
-          ))}
-        </List>
-      </Paper>
-
-      {/* Score-Ranking */}
-      <Box sx={{ mt: 4 }}>
-        <Typography variant="h6">Rangliste (Score)</Typography>
-        <List>
-          {scoreRanking.map((u) => (
-            <ListItem key={u.username}>
-              <ListItemText
-                primary={`${u.rank}. ${u.username}`}
-                secondary={`Score: ${u.score || 0}`}
-              />
-            </ListItem>
-          ))}
-        </List>
-      </Box>
-    </Box>
+      {/* 4. Rangliste */}
+      <h2>Rangliste</h2>
+      <table style={{
+        width: "100%",
+        marginTop: 16,
+        borderCollapse: "collapse",
+        boxShadow: "0 1px 4px #0001"
+      }}>
+        <thead>
+          <tr style={{ background: "#f0f0f0" }}>
+            <th style={{ padding: "8px 4px" }}>#</th>
+            <th>Name</th>
+            <th>Score</th>
+            <th>Rolle</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rangliste
+            .sort((a, b) => b.score - a.score)
+            .map((u, i) => (
+              <tr key={u.username} style={{
+                background: user.username === u.username ? "#ffffcc" : "#fff"
+              }}>
+                <td style={{ padding: "8px 4px" }}>{i + 1}</td>
+                <td>{u.username}</td>
+                <td>{u.score}</td>
+                <td>{u.role}</td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
