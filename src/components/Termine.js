@@ -52,8 +52,16 @@ function Termine({ user, token }) {
         });
         if (!res.ok) throw new Error("Fehler beim Laden der Termine: " + res.status);
         const termineData = await res.json();
-        if (!Array.isArray(termineData)) throw new Error("Termine-Format ungültig!");
-        setTermine(termineData);
+        // Stelle sicher, dass teilnehmer immer ein Array ist
+        const termineFixed = termineData.map(t => ({
+          ...t,
+          teilnehmer: Array.isArray(t.teilnehmer)
+            ? t.teilnehmer
+            : (typeof t.teilnehmer === "string"
+                ? JSON.parse(t.teilnehmer)
+                : [])
+        }));
+        setTermine(termineFixed);
 
         // --- Rangliste laden ---
         const res2 = await fetch(API_BASE + "/users", {
@@ -61,11 +69,10 @@ function Termine({ user, token }) {
         });
         if (!res2.ok) throw new Error("Fehler beim Laden der Nutzer: " + res2.status);
         const usersData = await res2.json();
-        if (!Array.isArray(usersData)) throw new Error("Rangliste-Format ungültig!");
         setRangliste(usersData);
 
         // --- Nächster eigener Termin ---
-        const myTermine = termineData
+        const myTermine = termineFixed
           .filter(
             t =>
               t &&
@@ -86,7 +93,7 @@ function Termine({ user, token }) {
       setLoading(false);
     }
     fetchData();
-  }, [token, user?.username]);
+  }, [token, user]);
 
   // Einschreiben
   async function handleEinschreiben(terminId) {
