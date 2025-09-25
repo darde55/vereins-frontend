@@ -20,6 +20,14 @@ const localizer = dateFnsLocalizer({
 
 const API_BASE = "https://vereins-backend-production.up.railway.app/api";
 
+function isStichtagPassed(stichtag) {
+  if (!stichtag) return false;
+  const now = new Date();
+  const s = new Date(stichtag);
+  // Vergleich auf Tagesebene
+  return now.setHours(0,0,0,0) > s.setHours(0,0,0,0);
+}
+
 function Termine({ user, token }) {
   const [termine, setTermine] = useState([]);
   const [rangliste, setRangliste] = useState([]);
@@ -317,13 +325,14 @@ function Termine({ user, token }) {
                           </button>
                         </>
                       )}
-                      {/* Einschreiben-Button für eingeloggte User, wenn noch nicht eingeschrieben */}
+                      {/* Einschreiben-Button für eingeloggte User, wenn noch nicht eingeschrieben UND Stichtag nicht abgelaufen */}
                       {Array.isArray(t.teilnehmer) &&
                         user &&
                         user.username &&
                         !t.teilnehmer
                           .map(name => (typeof name === "string" ? name.toLowerCase().trim() : ""))
-                          .includes(user.username.toLowerCase().trim()) && (
+                          .includes(user.username.toLowerCase().trim()) &&
+                        !isStichtagPassed(t.stichtag) && (
                           <button
                             onClick={() => handleEinschreiben(t.id)}
                             style={{ background: "#e0f7fa", border: "1px solid #00b8d4", color: "#006064", borderRadius: 6, padding: "0.32em 0.7em", cursor: "pointer" }}
@@ -331,6 +340,12 @@ function Termine({ user, token }) {
                             Einschreiben
                           </button>
                         )}
+                      {/* Hinweis falls Stichtag abgelaufen */}
+                      {isStichtagPassed(t.stichtag) && (
+                        <span style={{ marginLeft: 10, color: "#b00", fontWeight: "bold" }}>
+                          Einschreibung geschlossen
+                        </span>
+                      )}
                       <button
                         onClick={() =>
                           setSelectedDetails(sd => ({
