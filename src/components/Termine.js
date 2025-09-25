@@ -155,8 +155,8 @@ function Termine({ user, token }) {
       ende: termin.ende || "",
       anzahl: termin.anzahl,
       stichtag: termin.stichtag || "",
-      ansprechpartner: termin.ansprechpartner || "",
-      ansprechpartner_email: termin.ansprechpartner_email || "",
+      ansprechpartner_name: termin.ansprechpartner_name || "",
+      ansprechpartner_mail: termin.ansprechpartner_mail || "",
       score: termin.score || 0
     });
     setShowUserAdd(false);
@@ -359,11 +359,11 @@ function Termine({ user, token }) {
                         <b>Beschreibung:</b> {t.beschreibung || "–"}
                       </div>
                       <div>
-                        <b>Ansprechpartner:</b> {t.ansprechpartner || "–"}
-                        {t.ansprechpartner_email && (
+                        <b>Ansprechpartner:</b> {t.ansprechpartner_name || "–"}
+                        {t.ansprechpartner_mail && (
                           <> (
-                            <a href={`mailto:${t.ansprechpartner_email}`}>
-                              {t.ansprechpartner_email}
+                            <a href={`mailto:${t.ansprechpartner_mail}`}>
+                              {t.ansprechpartner_mail}
                             </a>
                           )</>
                         )}
@@ -465,13 +465,13 @@ function Termine({ user, token }) {
               placeholder="Maximale Teilnehmer"
             />
             <input
-              value={editData.ansprechpartner}
-              onChange={e => setEditData(ed => ({ ...ed, ansprechpartner: e.target.value }))}
+              value={editData.ansprechpartner_name}
+              onChange={e => setEditData(ed => ({ ...ed, ansprechpartner_name: e.target.value }))}
               placeholder="Ansprechpartner"
             />
             <input
-              value={editData.ansprechpartner_email}
-              onChange={e => setEditData(ed => ({ ...ed, ansprechpartner_email: e.target.value }))}
+              value={editData.ansprechpartner_mail}
+              onChange={e => setEditData(ed => ({ ...ed, ansprechpartner_mail: e.target.value }))}
               placeholder="E-Mail Ansprechpartner"
               type="email"
             />
